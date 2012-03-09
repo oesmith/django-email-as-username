@@ -1,5 +1,6 @@
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
+from django.conf import settings
 from emailusernames.forms import EmailAdminAuthenticationForm
 from emailusernames.utils import _email_to_username
 
@@ -20,9 +21,9 @@ def user_save_patch(self, *args, **kwargs):
     super(User, self).save(*args, **kwargs)
     self.username = self.email
 
-
-User.__init__ = user_init_patch
-User.save = user_save_patch
+if getattr(settings, 'DISABLE_EMAILUSERNAME_MONKEYPATCH', False):
+    User.__init__ = user_init_patch
+    User.save = user_save_patch
 
 # Monkey-path the admin site to use a custom login form
 AdminSite.login_form = EmailAdminAuthenticationForm
