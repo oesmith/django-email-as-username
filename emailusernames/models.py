@@ -1,6 +1,5 @@
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
-from django.conf import settings
 from emailusernames.forms import EmailAdminAuthenticationForm
 from emailusernames.utils import _email_to_username
 
@@ -10,20 +9,29 @@ from emailusernames.utils import _email_to_username
 # It would be possible to avoid such a deep level of monkey-patching,
 # but Django's admin displays the "Welcome, username" using user.username,
 # and there's really no other way to get around it.
+
 def user_init_patch(self, *args, **kwargs):
     super(User, self).__init__(*args, **kwargs)
     self._username = self.username
     self.username = self.email
-
 
 def user_save_patch(self, *args, **kwargs):
     self.username = _email_to_username(self.email)
     super(User, self).save(*args, **kwargs)
     self.username = self.email
 
-if getattr(settings, 'DISABLE_EMAILUSERNAME_MONKEYPATCH', False):
-    User.__init__ = user_init_patch
-    User.save = user_save_patch
+old_user_init = User.__init__
+old_user_save = User.save
+
+class ContribAuthUser(User):
+    """An un-monkeypatched user model."""
+    class Meta:
+        proxy = True
+    __init__ = old_user_init
+    save = old_user_save
+
+User.__init__ = user_init_patch
+User.save = user_save_patch
 
 # Monkey-path the admin site to use a custom login form
 AdminSite.login_form = EmailAdminAuthenticationForm
